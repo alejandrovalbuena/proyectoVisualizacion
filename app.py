@@ -48,5 +48,5 @@ app.layout = html.Div(children=[
     dcc.Graph(id='comparison-graph', figure=fig_comparison)
 ])
 
-if __name__ == '__main__':
+if __StockViewer__ == '__main__':
     app.run_server(debug=True)
