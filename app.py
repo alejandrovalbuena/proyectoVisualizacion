@@ -14,9 +14,9 @@ top_50_sp500 = [
     {'label': 'Alphabet Inc (Google)', 'value': 'GOOGL'}
 ]
 
-def fetch_stock_data(symbol):
+def fetch_stock_data(symbol, period):
     stock = yf.Ticker(symbol)
-    df = stock.history(period="1y")  # You can change the period as needed
+    df = stock.history(period=period)
     return df
 
 app.layout = html.Div(children=[
@@ -25,7 +25,25 @@ app.layout = html.Div(children=[
     dcc.Dropdown(
         id='stock-selector',
         options=top_50_sp500,
-        value='AAPL'  
+        value='AAPL'
+    ),
+
+    dcc.Dropdown(
+        id='time-range-selector',
+        options=[
+            {'label': '1 Month', 'value': '1mo'},
+            {'label': '3 Months', 'value': '3mo'},
+            {'label': '6 Months', 'value': '6mo'},
+            {'label': '1 Year', 'value': '1y'},
+            {'label': '5 Years', 'value': '5y'}
+        ],
+        value='1y'
+    ),
+
+    dcc.Checklist(
+        id='ma-selector',
+        options=[{'label': 'Show 200-session Moving Average', 'value': 'MA200'}],
+        value=[]
     ),
 
     dcc.Graph(id='stock-price-graph')
@@ -33,13 +51,31 @@ app.layout = html.Div(children=[
 
 @app.callback(
     Output('stock-price-graph', 'figure'),
-    [Input('stock-selector', 'value')]
+    [Input('stock-selector', 'value'), Input('ma-selector', 'value'), Input('time-range-selector', 'value')]
 )
-def update_graph(selected_stock):
-    df_stock = fetch_stock_data(selected_stock)
+def update_graph(selected_stock, ma_options, selected_time_range):
+    df_stock = fetch_stock_data(selected_stock, selected_time_range)
+
+    # Ensure the DataFrame is sorted by date in ascending order
+    df_stock.sort_index(inplace=True)
+
     fig = go.Figure()
+
+    # Plotting the close price
     fig.add_trace(go.Scatter(x=df_stock.index, y=df_stock['Close'], mode='lines', name=f'{selected_stock} Close Price'))
+
+    # Check if the 200-session moving average is selected and the time range is either 1 year or 5 years
+    if 'MA200' in ma_options and selected_time_range in ['1y', '5y']:
+        # Calculate 200-session moving average
+        # Using min_periods=1 will start the MA line from the beginning of the dataset
+        df_stock['200_MA'] = df_stock['Close'].rolling(window=200, min_periods=1).mean()
+        
+        # Plotting the 200-session moving average
+        fig.add_trace(go.Scatter(x=df_stock.index, y=df_stock['200_MA'], mode='lines', name='200 Session MA', line=dict(color='red')))
+
     return fig
+
+
 
 if __name__ == '__main__':
     app.run_server(debug=True)
