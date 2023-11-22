@@ -1,17 +1,27 @@
-import requests
-import pandas as pd
+import dash
+from dash import dcc, html
+from dash.dependencies import Input, Output
 import plotly.graph_objs as go
-from dash import Dash, dcc, html
+import pandas as pd
+import requests
 
 
-app = Dash(__name__)
-
+app = dash.Dash(__name__)
 
 API_KEY = '51ZCQSNHYPT65QDB'
-SYMBOL_AAPL = 'AAPL'
-SYMBOL_AMZN = 'AMZN'
+
+top_50_sp500 = [
+    {'label': 'Apple Inc', 'value': 'AAPL'},
+    {'label': 'Microsoft Corp', 'value': 'MSFT'},
+    {'label': 'Amazon.com Inc', 'value': 'AMZN'},
+    {'label': 'Facebook Inc', 'value': 'FB'},
+    {'label': 'Alphabet Inc (Google)', 'value': 'GOOGL'}
+]
+
+
 
 def fetch_stock_data(symbol):
+    API_KEY = 'YourAlphaVantageAPIKey'
     url = f'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={symbol}&apikey={API_KEY}&datatype=json'
     response = requests.get(url)
     data = response.json()
@@ -22,31 +32,28 @@ def fetch_stock_data(symbol):
     return df
 
 
-df_aapl = fetch_stock_data(SYMBOL_AAPL)
-
-
-df_amzn = fetch_stock_data(SYMBOL_AMZN)
-
-
-fig_aapl = go.Figure()
-fig_aapl.add_trace(go.Scatter(x=df_aapl.index, y=df_aapl['Close'], mode='lines', name='AAPL Close Price'))
-
-
-fig_amzn = go.Figure()
-fig_amzn.add_trace(go.Scatter(x=df_amzn.index, y=df_amzn['Close'], mode='lines', name='AMZN Close Price'))
-
-
-fig_comparison = go.Figure()
-fig_comparison.add_trace(go.Scatter(x=df_aapl.index, y=df_aapl['Close'], mode='lines', name='AAPL Close Price'))
-fig_comparison.add_trace(go.Scatter(x=df_amzn.index, y=df_amzn['Close'], mode='lines', name='AMZN Close Price'))
-
-
 app.layout = html.Div(children=[
-    html.H1(children='Stock Price Visualization'),
-    dcc.Graph(id='apple-stock-price', figure=fig_aapl),
-    dcc.Graph(id='amazon-stock-price', figure=fig_amzn),
-    dcc.Graph(id='comparison-graph', figure=fig_comparison)
+    html.H1(children='S&P 500 Stock App'),
+
+    dcc.Dropdown(
+        id='stock-selector',
+        options=top_50_sp500,
+        value='AAPL'  
+    ),
+
+    dcc.Graph(id='stock-price-graph')
 ])
 
-if __StockViewer__ == '__main__':
+@app.callback(
+    Output('stock-price-graph', 'figure'),
+    [Input('stock-selector', 'value')]
+)
+def update_graph(selected_stock):
+    df_stock = fetch_stock_data(selected_stock)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=df_stock.index, y=df_stock['Close'], mode='lines', name=f'{selected_stock} Close Price'))
+    return fig
+
+
+if __name__ == '__main__':
     app.run_server(debug=True)
