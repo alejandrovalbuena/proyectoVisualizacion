@@ -11,8 +11,34 @@ top_50_sp500 = [
     {'label': 'Microsoft Corp', 'value': 'MSFT'},
     {'label': 'Amazon.com Inc', 'value': 'AMZN'},
     {'label': 'Meta Platforms', 'value': 'META'},
-    {'label': 'Alphabet Inc (Google)', 'value': 'GOOGL'}
+    {'label': 'Alphabet Inc (Google)', 'value': 'GOOGL'},
+    {'label': 'Berkshire Hathaway', 'value': 'BRK.B'},
+    {'label': 'Johnson & Johnson', 'value': 'JNJ'},
+    {'label': 'JPMorgan Chase & Co.', 'value': 'JPM'},
+    {'label': 'Visa Inc', 'value': 'V'},
+    {'label': 'Procter & Gamble Co', 'value': 'PG'},
+    {'label': 'UnitedHealth Group', 'value': 'UNH'},
+    {'label': 'NVIDIA Corporation', 'value': 'NVDA'},
+    {'label': 'Home Depot', 'value': 'HD'},
+    {'label': 'Tesla Inc', 'value': 'TSLA'},
+    {'label': 'Mastercard Inc', 'value': 'MA'},
+    {'label': 'Walt Disney Co', 'value': 'DIS'},
+    {'label': 'PayPal Holdings', 'value': 'PYPL'},
+    {'label': 'Comcast Corp', 'value': 'CMCSA'},
+    {'label': 'Adobe Inc', 'value': 'ADBE'},
+    {'label': 'Netflix Inc', 'value': 'NFLX'},
+    {'label': 'Intel Corp', 'value': 'INTC'},
+    {'label': 'Verizon Communications', 'value': 'VZ'},
+    {'label': 'Coca-Cola Co', 'value': 'KO'},
+    {'label': 'AT&T Inc', 'value': 'T'},
+    {'label': 'Pfizer Inc', 'value': 'PFE'},
+    {'label': 'Cisco Systems', 'value': 'CSCO'},
+    {'label': 'PepsiCo Inc', 'value': 'PEP'},
+    {'label': 'Merck & Co Inc', 'value': 'MRK'},
+    {'label': 'Walmart Inc', 'value': 'WMT'},
+    {'label': 'Broadcom Inc', 'value': 'AVGO'}
 ]
+
 
 def fetch_stock_data(symbol, period):
     stock = yf.Ticker(symbol)
@@ -64,11 +90,9 @@ def update_graph(selected_stock, ma_options, selected_time_range):
 
     # Check if the 200-session moving average is selected and the time range is either 1 year or 5 years
     if 'MA200' in ma_options and selected_time_range in ['1y', '5y']:
-        # Calculate 200-session moving average
-        # Using min_periods=1 will start the MA line from the beginning of the dataset
+
         df_stock['200_MA'] = df_stock['Close'].rolling(window=200, min_periods=1).mean()
         
-        # Plotting the 200-session moving average
         fig.add_trace(go.Scatter(x=df_stock.index, y=df_stock['200_MA'], mode='lines', name='200 Session MA', line=dict(color='red')))
 
     return fig
