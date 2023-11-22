@@ -10,7 +10,7 @@ top_50_sp500 = [
     {'label': 'Apple Inc', 'value': 'AAPL'},
     {'label': 'Microsoft Corp', 'value': 'MSFT'},
     {'label': 'Amazon.com Inc', 'value': 'AMZN'},
-    {'label': 'Facebook Inc', 'value': 'FB'},
+    {'label': 'Meta Platforms', 'value': 'META'},
     {'label': 'Alphabet Inc (Google)', 'value': 'GOOGL'}
 ]
 
@@ -42,7 +42,7 @@ app.layout = html.Div(children=[
 
     dcc.Checklist(
         id='ma-selector',
-        options=[{'label': 'Show 200-session Moving Average', 'value': 'MA200'}],
+        options=[{'label': 'Show 200-session Moving Average (Only in 1 and 5 year time frames)', 'value': 'MA200'}],
         value=[]
     ),
 
@@ -55,8 +55,6 @@ app.layout = html.Div(children=[
 )
 def update_graph(selected_stock, ma_options, selected_time_range):
     df_stock = fetch_stock_data(selected_stock, selected_time_range)
-
-    # Ensure the DataFrame is sorted by date in ascending order
     df_stock.sort_index(inplace=True)
 
     fig = go.Figure()
