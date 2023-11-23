@@ -1,6 +1,6 @@
 import dash
 from dash import dcc, html
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 import plotly.graph_objs as go
 import yfinance as yf
 from statsmodels.tsa.arima.model import ARIMA
@@ -78,6 +78,8 @@ app.layout = html.Div([
         value='AAPL'  # Default value to Apple Inc
     ),
 
+    html.Button('Select All Indicators', id='select-all-button'),
+
     dcc.Dropdown(
         id='time-range-selector',
         options=[
@@ -116,7 +118,23 @@ app.layout = html.Div([
     ])
 ])
 
+@app.callback(
+    Output('ma-options-selector', 'value'),
+    Output('indicator-selector', 'value'),
+    Input('select-all-button', 'n_clicks'),
+    State('ma-options-selector', 'options'),
+    State('indicator-selector', 'options'),
+    prevent_initial_call=True
+)
+def select_all(n_clicks, ma_options, indicator_options):
+    if n_clicks is None:
+        raise PreventUpdate
 
+    # Extract the values from options
+    ma_values = [option['value'] for option in ma_options]
+    indicator_values = [option['value'] for option in indicator_options]
+
+    return ma_values, indicator_values
 
 @app.callback(
     Output('stock-price-graph', 'figure'),
