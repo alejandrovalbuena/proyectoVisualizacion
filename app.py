@@ -6,45 +6,31 @@ import yfinance as yf
 from statsmodels.tsa.arima.model import ARIMA
 from scipy.stats import linregress
 from plotly.subplots import make_subplots
-from datetime import datetime
+from datetime import datetime, timedelta
+from sklearn.linear_model import LinearRegression
+import numpy as np
+import pandas as pd
+from numpy.polynomial.polynomial import Polynomial
+from statsmodels.tsa.arima.model import ARIMA
+from dash.exceptions import PreventUpdate
+import matplotlib.dates as mdates
+from pandas.tseries.offsets import BDay
+from sklearn.svm import SVR
 
 app = dash.Dash(__name__)
 
 top_50_sp500 = [
     {'label': 'Apple Inc', 'value': 'AAPL'},
-    {'label': 'Microsoft Corp', 'value': 'MSFT'},
-    {'label': 'Amazon.com Inc', 'value': 'AMZN'},
-    {'label': 'Meta Platforms', 'value': 'META'},
-    {'label': 'Alphabet Inc (Google)', 'value': 'GOOGL'},
-    {'label': 'Berkshire Hathaway', 'value': 'BRK.B'},
-    {'label': 'Johnson & Johnson', 'value': 'JNJ'},
-    {'label': 'JPMorgan Chase & Co.', 'value': 'JPM'},
-    {'label': 'Visa Inc', 'value': 'V'},
-    {'label': 'Procter & Gamble Co', 'value': 'PG'},
-    {'label': 'UnitedHealth Group', 'value': 'UNH'},
-    {'label': 'NVIDIA Corporation', 'value': 'NVDA'},
-    {'label': 'Home Depot', 'value': 'HD'},
-    {'label': 'Tesla Inc', 'value': 'TSLA'},
-    {'label': 'Mastercard Inc', 'value': 'MA'},
-    {'label': 'Walt Disney Co', 'value': 'DIS'},
-    {'label': 'PayPal Holdings', 'value': 'PYPL'},
-    {'label': 'Comcast Corp', 'value': 'CMCSA'},
-    {'label': 'Adobe Inc', 'value': 'ADBE'},
-    {'label': 'Netflix Inc', 'value': 'NFLX'},
-    {'label': 'Intel Corp', 'value': 'INTC'},
-    {'label': 'Verizon Communications', 'value': 'VZ'},
-    {'label': 'Coca-Cola Co', 'value': 'KO'},
-    {'label': 'AT&T Inc', 'value': 'T'},
-    {'label': 'Pfizer Inc', 'value': 'PFE'},
-    {'label': 'Cisco Systems', 'value': 'CSCO'},
-    {'label': 'PepsiCo Inc', 'value': 'PEP'},
-    {'label': 'Merck & Co Inc', 'value': 'MRK'},
-    {'label': 'Walmart Inc', 'value': 'WMT'},
     {'label': 'Broadcom Inc', 'value': 'AVGO'}
 ]
 
 
 def fetch_stock_data(symbol, period):
+    stock = yf.Ticker(symbol)
+    df = stock.history(period=period)
+    return df
+
+def fetch_stock_data6(symbol, period='6mo'):
     stock = yf.Ticker(symbol)
     df = stock.history(period=period)
     return df
@@ -69,16 +55,50 @@ def calculate_bollinger_bands(dataframe, window=20, num_of_std=2):
     
     return rolling_mean, upper_band, lower_band
 
+def predict_stock_prices_with_svm(dataframe):
+    # Prepare the data for SVM
+    dataframe['NumericIndex'] = range(len(dataframe))
+    X = dataframe['NumericIndex'].values.reshape(-1, 1)
+    y = dataframe['Close'].values
+
+    # Train the SVM model
+    svm_model = SVR(kernel='rbf', C=100, gamma=0.1, epsilon=.1)
+    svm_model.fit(X, y)
+
+    # Predict future prices
+    future_indices = np.array(range(len(dataframe), len(dataframe) + 90)).reshape(-1, 1)
+    future_preds = svm_model.predict(future_indices)
+    
+    return future_preds, svm_model
+
+def fetch_data_with_sma(ticker, period='1y', interval='1d', window_size=5):
+    # Fetch historical data from yfinance
+    data = yf.download(ticker, period=period, interval=interval)
+    # Calculate SMA
+    data['SMA'] = data['Close'].rolling(window=window_size).mean()
+    return data
+
+def perform_linear_regression(df):
+    # Prepare the data for regression
+    df['NumericIndex'] = range(len(df))
+    X = df['NumericIndex'].values.reshape(-1, 1)
+    y = df['Close'].values
+    # Fit the regression model
+    model = LinearRegression()
+    model.fit(X, y)
+    # Predict future values
+    future_indices = np.array(range(len(df), len(df) + 90)).reshape(-1, 1)
+    future_preds = model.predict(future_indices)
+    return future_preds, model
+
 app.layout = html.Div([
     html.H1('S&P 500 Stock App'),
 
     dcc.Dropdown(
         id='stock-selector',
         options=top_50_sp500,
-        value='AAPL'  # Default value to Apple Inc
+        value='AAPL'  # Default value
     ),
-
-    html.Button('Select All Indicators', id='select-all-button'),
 
     dcc.Dropdown(
         id='time-range-selector',
@@ -89,33 +109,36 @@ app.layout = html.Div([
             {'label': '1 Year', 'value': '1y'},
             {'label': '5 Years', 'value': '5y'}
         ],
-        value='1y'  # Default value to 1 Year
+        value='1y'  # Default value
     ),
 
-    html.Div([
-        dcc.Checklist(
-            id='ma-options-selector',
-            options=[
-                {'label': 'Show 200-session Moving Average', 'value': 'MA200'},
-                {'label': 'Show 100-session Moving Average', 'value': 'MA100'},
-                {'label': 'Show 50-session Moving Average', 'value': 'MA50'}
-            ],
-            value=['MA200']  # Default value with 200-session MA selected
-        ),
-        dcc.Graph(id='stock-price-graph')
-    ]),
+    html.Button('Select All Indicators', id='select-all-button'),
 
-    html.Div([
-        dcc.Checklist(
-            id='indicator-selector',
-            options=[
-                {'label': 'Show RSI', 'value': 'RSI'},
-                {'label': 'Show Bollinger Bands', 'value': 'BOLL'}
-            ],
-            value=[]  # No default value, user must select
-        ),
-        dcc.Graph(id='indicator-graph')
-    ])
+    dcc.Checklist(
+        id='ma-options-selector',
+        options=[
+            {'label': 'Show 200-session Moving Average', 'value': 'MA200'},
+            {'label': 'Show 100-session Moving Average', 'value': 'MA100'},
+            {'label': 'Show 50-session Moving Average', 'value': 'MA50'}
+        ],
+        value=[]  # No default value, user must select
+    ),
+
+    dcc.Graph(id='stock-price-graph'),
+
+    dcc.Checklist(
+        id='indicator-selector',
+        options=[
+            {'label': 'Show RSI', 'value': 'RSI'},
+            {'label': 'Show Bollinger Bands', 'value': 'BOLL'}
+        ],
+        value=[]  # No default value, user must select
+    ),
+
+    dcc.Graph(id='indicator-graph'),
+
+    # The new Graph for the linear regression prediction
+    dcc.Graph(id='svm-prediction-graph')
 ])
 
 @app.callback(
@@ -207,8 +230,20 @@ def update_indicator_graph(selected_stock, selected_indicators, selected_time_ra
 
     return fig
 
+@app.callback(
+    Output('svm-prediction-graph', 'figure'),
+    [Input('stock-selector', 'value')]
+)
+def update_svm_prediction_graph(selected_stock):
+    df_stock = fetch_stock_data6(selected_stock)
+    future_preds, _ = predict_stock_prices_with_svm(df_stock)
 
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=df_stock.index, y=df_stock['Close'], mode='lines', name='Historical Prices'))
+    future_dates = pd.date_range(start=df_stock.index[-1], periods=91, closed='right')
+    fig.add_trace(go.Scatter(x=future_dates, y=future_preds, mode='lines', name='SVM Predictions'))
 
+    return fig  
 
 if __name__ == '__main__':
     app.run_server(debug=True)
