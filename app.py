@@ -16,6 +16,8 @@ from dash.exceptions import PreventUpdate
 import matplotlib.dates as mdates
 from pandas.tseries.offsets import BDay
 from sklearn.svm import SVR
+from sklearn.metrics import mean_squared_error
+from math import sqrt
 
 app = dash.Dash(__name__)
 
@@ -26,11 +28,6 @@ top_50_sp500 = [
 
 
 def fetch_stock_data(symbol, period):
-    stock = yf.Ticker(symbol)
-    df = stock.history(period=period)
-    return df
-
-def fetch_stock_data6(symbol, period='6mo'):
     stock = yf.Ticker(symbol)
     df = stock.history(period=period)
     return df
@@ -55,41 +52,43 @@ def calculate_bollinger_bands(dataframe, window=20, num_of_std=2):
     
     return rolling_mean, upper_band, lower_band
 
-def predict_stock_prices_with_svm(dataframe):
-    # Prepare the data for SVM
-    dataframe['NumericIndex'] = range(len(dataframe))
-    X = dataframe['NumericIndex'].values.reshape(-1, 1)
-    y = dataframe['Close'].values
+def fetch_hourly_stock_data(symbol, start_date, end_date):
+    # Fetches hourly stock data within a specified date range
+    stock = yf.Ticker(symbol)
+    df = stock.history(interval="1h", start=start_date, end=end_date)
+    return df
 
-    # Train the SVM model
-    svm_model = SVR(kernel='rbf', C=100, gamma=0.1, epsilon=.1)
-    svm_model.fit(X, y)
-
-    # Predict future prices
-    future_indices = np.array(range(len(dataframe), len(dataframe) + 90)).reshape(-1, 1)
-    future_preds = svm_model.predict(future_indices)
+def perform_hourly_linear_regression(dataframe, hours_ahead=24):
+    # Ensure the dataframe is sorted by date
+    dataframe = dataframe.sort_index()
     
-    return future_preds, svm_model
+    # Use hourly data
+    hourly_data = dataframe.last('2W')  # Use the last two weeks of hourly data
+    
+    hourly_data['NumericIndex'] = range(len(hourly_data))
+    X = hourly_data[['NumericIndex']]  # Using NumericIndex as feature
+    y = hourly_data['Close']
 
-def fetch_data_with_sma(ticker, period='1y', interval='1d', window_size=5):
-    # Fetch historical data from yfinance
-    data = yf.download(ticker, period=period, interval=interval)
-    # Calculate SMA
-    data['SMA'] = data['Close'].rolling(window=window_size).mean()
-    return data
-
-def perform_linear_regression(df):
-    # Prepare the data for regression
-    df['NumericIndex'] = range(len(df))
-    X = df['NumericIndex'].values.reshape(-1, 1)
-    y = df['Close'].values
     # Fit the regression model
     model = LinearRegression()
     model.fit(X, y)
+
     # Predict future values
-    future_indices = np.array(range(len(df), len(df) + 90)).reshape(-1, 1)
+    last_numeric_index = hourly_data['NumericIndex'].iloc[-1]
+    future_indices = np.array(range(last_numeric_index + 1, last_numeric_index + hours_ahead + 1)).reshape(-1, 1)
     future_preds = model.predict(future_indices)
-    return future_preds, model
+    
+    # Calculate the RMSE for confidence intervals
+    y_pred = model.predict(X)
+    rmse = sqrt(mean_squared_error(y, y_pred))
+    
+    # Create confidence intervals
+    lower_bound = future_preds - 1.96 * rmse
+    upper_bound = future_preds + 1.96 * rmse
+    
+    return hourly_data.index, hourly_data['Close'], future_preds, lower_bound, upper_bound, model
+
+
 
 app.layout = html.Div([
     html.H1('S&P 500 Stock App'),
@@ -136,9 +135,7 @@ app.layout = html.Div([
     ),
 
     dcc.Graph(id='indicator-graph'),
-
-    # The new Graph for the linear regression prediction
-    dcc.Graph(id='svm-prediction-graph')
+    dcc.Graph(id='linear-regression-prediction-graph')
 ])
 
 @app.callback(
@@ -231,19 +228,40 @@ def update_indicator_graph(selected_stock, selected_indicators, selected_time_ra
     return fig
 
 @app.callback(
-    Output('svm-prediction-graph', 'figure'),
-    [Input('stock-selector', 'value')]
+    Output('linear-regression-prediction-graph', 'figure'),
+    [Input('stock-selector', 'value'), Input('time-range-selector', 'value')]
 )
-def update_svm_prediction_graph(selected_stock):
-    df_stock = fetch_stock_data6(selected_stock)
-    future_preds, _ = predict_stock_prices_with_svm(df_stock)
+def update_hourly_linear_regression_graph(selected_stock, selected_time_range):
+    # Define the start and end date for fetching hourly data
+    end_date = pd.Timestamp.now()
+    start_date = end_date - pd.Timedelta(weeks=2)
+    
+    df_stock = fetch_hourly_stock_data(selected_stock, start_date, end_date)
+    if df_stock.empty:
+        return go.Figure()
+
+    historical_dates, historical_prices, future_preds, lower_bound, upper_bound, _ = perform_hourly_linear_regression(df_stock)
 
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=df_stock.index, y=df_stock['Close'], mode='lines', name='Historical Prices'))
-    future_dates = pd.date_range(start=df_stock.index[-1], periods=91, closed='right')
-    fig.add_trace(go.Scatter(x=future_dates, y=future_preds, mode='lines', name='SVM Predictions'))
+    fig.add_trace(go.Scatter(x=historical_dates, y=historical_prices, mode='lines', name='Historical Prices'))
+    future_dates = pd.date_range(start=historical_dates[-1], periods=len(future_preds)+1, freq='H', closed='right')
+    fig.add_trace(go.Scatter(x=future_dates, y=future_preds, mode='lines', name='Linear Regression Predictions', line=dict(color='orange')))
+    
+    # Add confidence intervals
+    fig.add_trace(go.Scatter(x=future_dates, y=lower_bound, mode='lines', name='Lower Confidence Bound', line=dict(color='red')))
+    fig.add_trace(go.Scatter(x=future_dates, y=upper_bound, mode='lines', name='Upper Confidence Bound', line=dict(color='green')))
+    
+    # Fill the area between the confidence bounds
+    fig.add_traces([go.Scatter(x=list(future_dates)+list(future_dates)[::-1],
+                               y=list(upper_bound)+list(lower_bound)[::-1],
+                               fill='toself',
+                               fillcolor='rgba(231,107,243,0.2)',
+                               line=dict(color='rgba(255,255,255,0)'),
+                               name='Confidence Interval')])
 
-    return fig  
+    fig.update_layout(title='Hourly Stock Price Prediction with Linear Regression and Confidence Interval')
+    
+    return fig
 
 if __name__ == '__main__':
     app.run_server(debug=True)
