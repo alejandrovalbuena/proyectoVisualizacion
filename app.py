@@ -3,17 +3,11 @@ from dash import dcc, html
 from dash.dependencies import Input, Output, State
 import plotly.graph_objs as go
 import yfinance as yf
-from statsmodels.tsa.arima.model import ARIMA
-from scipy.stats import linregress
 from plotly.subplots import make_subplots
-from datetime import datetime, timedelta
 from sklearn.linear_model import LinearRegression
 import numpy as np
 import pandas as pd
-from numpy.polynomial.polynomial import Polynomial
-from statsmodels.tsa.arima.model import ARIMA
 from dash.exceptions import PreventUpdate
-import matplotlib.dates as mdates
 from pandas.tseries.offsets import BDay
 from sklearn.svm import SVR
 from sklearn.metrics import mean_squared_error
@@ -23,7 +17,30 @@ app = dash.Dash(__name__)
 
 top_50_sp500 = [
     {'label': 'Apple Inc', 'value': 'AAPL'},
-    {'label': 'Broadcom Inc', 'value': 'AVGO'}
+    {'label': 'Broadcom Inc', 'value': 'AVGO'},
+    {'label': 'Sysco Corporation', 'value': 'SYY'},
+    {'label': 'T-Mobile US', 'value': 'TMUS'},
+    {'label': 'T. Rowe Price', 'value': 'TROW'},
+    {'label': 'Take-Two Interactive', 'value': 'TTWO'},
+    {'label': 'Tapestry, Inc.', 'value': 'TPR'},
+    {'label': 'Targa Resources', 'value': 'TRGP'},
+    {'label': 'Target Corporation', 'value': 'TGT'},
+    {'label': 'TE Connectivity', 'value': 'TEL'},
+    {'label': 'Tesla, Inc.', 'value': 'TSLA'},
+    {'label': 'Texas Instruments', 'value': 'TXN'},
+    {'label': 'Textron', 'value': 'TXT'},
+    {'label': 'Thermo Fisher Scientific', 'value': 'TMO'},
+    {'label': 'TJX Companies', 'value': 'TJX'},
+    {'label': 'Tractor Supply Company', 'value': 'TSCO'},
+    {'label': 'Trane Technologies', 'value': 'TT'},
+    {'label': 'TransDigm Group', 'value': 'TDG'},
+    {'label': 'Travelers Companies', 'value': 'TRV'},
+    {'label': 'Trimble Inc.', 'value': 'TRMB'},
+    {'label': 'Truist Financial', 'value': 'TFC'},
+    {'label': 'Tyler Technologies', 'value': 'TYL'},
+    {'label': 'Tyson Foods', 'value': 'TSN'},
+    {'label': 'U.S. Bancorp', 'value': 'USB'},
+    {'label': 'UDR, Inc.', 'value': 'UDR'}
 ]
 
 
@@ -61,13 +78,12 @@ def fetch_hourly_stock_data(symbol, start_date, end_date):
 def perform_hourly_linear_regression(dataframe, hours_ahead=24):
     # Ensure the dataframe is sorted by date
     dataframe = dataframe.sort_index()
-    
-    # Use hourly data
-    hourly_data = dataframe.last('2W')  # Use the last two weeks of hourly data
+    hourly_data = dataframe
     
     hourly_data['NumericIndex'] = range(len(hourly_data))
-    X = hourly_data[['NumericIndex']]  # Using NumericIndex as feature
+    X = hourly_data[['NumericIndex']] 
     y = hourly_data['Close']
+
 
     # Fit the regression model
     model = LinearRegression()
@@ -234,7 +250,8 @@ def update_indicator_graph(selected_stock, selected_indicators, selected_time_ra
 def update_hourly_linear_regression_graph(selected_stock, selected_time_range):
     # Define the start and end date for fetching hourly data
     end_date = pd.Timestamp.now()
-    start_date = end_date - pd.Timedelta(weeks=2)
+    start_date = end_date - pd.Timedelta(weeks=4)  # Fetching 4 weeks of data for example
+
     
     df_stock = fetch_hourly_stock_data(selected_stock, start_date, end_date)
     if df_stock.empty:
@@ -247,7 +264,6 @@ def update_hourly_linear_regression_graph(selected_stock, selected_time_range):
     future_dates = pd.date_range(start=historical_dates[-1], periods=len(future_preds)+1, freq='H', closed='right')
     fig.add_trace(go.Scatter(x=future_dates, y=future_preds, mode='lines', name='Linear Regression Predictions', line=dict(color='orange')))
     
-    # Add confidence intervals
     fig.add_trace(go.Scatter(x=future_dates, y=lower_bound, mode='lines', name='Lower Confidence Bound', line=dict(color='red')))
     fig.add_trace(go.Scatter(x=future_dates, y=upper_bound, mode='lines', name='Upper Confidence Bound', line=dict(color='green')))
     
