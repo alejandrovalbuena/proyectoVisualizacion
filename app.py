@@ -9,9 +9,11 @@ import numpy as np
 import pandas as pd
 from dash.exceptions import PreventUpdate
 from pandas.tseries.offsets import BDay
-from sklearn.svm import SVR
 from sklearn.metrics import mean_squared_error
 from math import sqrt
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.linear_model import LinearRegression
+
 
 app = dash.Dash(__name__)
 
@@ -202,48 +204,6 @@ def update_graph(selected_stock, ma_options, selected_time_range):
 
 
 @app.callback(
-    Output('indicator-graph', 'figure'),
-    [Input('stock-selector', 'value'),
-     Input('indicator-selector', 'value'),
-     Input('time-range-selector', 'value')]
-)
-def update_indicator_graph(selected_stock, selected_indicators, selected_time_range):
-    df_stock = fetch_stock_data(selected_stock, selected_time_range)
-    
-    if df_stock.empty:
-        return go.Figure()
-
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
-
-    if 'RSI' in selected_indicators:
-        rsi = calculate_rsi(df_stock)
-        fig.add_trace(
-            go.Scatter(x=df_stock.index, y=rsi, mode='lines', name='RSI'),
-            secondary_y=False,
-        )
-
-    if 'BOLL' in selected_indicators:
-        rolling_mean, upper_band, lower_band = calculate_bollinger_bands(df_stock)
-        fig.add_trace(
-            go.Scatter(x=df_stock.index, y=upper_band, mode='lines', name='Upper Bollinger Band', line=dict(color='green')),
-            secondary_y=True,
-        )
-        fig.add_trace(
-            go.Scatter(x=df_stock.index, y=rolling_mean, mode='lines', name='Middle Bollinger Band', line=dict(color='blue')),
-            secondary_y=True,
-        )
-        fig.add_trace(
-            go.Scatter(x=df_stock.index, y=lower_band, mode='lines', name='Lower Bollinger Band', line=dict(color='red')),
-            secondary_y=True,
-        )
-
-    fig.update_layout(title=f'{selected_stock} Indicators')
-    fig.update_yaxes(title_text="RSI", secondary_y=False)
-    fig.update_yaxes(title_text="Bollinger Bands", secondary_y=True)
-
-    return fig
-
-@app.callback(
     Output('linear-regression-prediction-graph', 'figure'),
     [Input('stock-selector', 'value'), Input('time-range-selector', 'value')]
 )
@@ -252,30 +212,30 @@ def update_hourly_linear_regression_graph(selected_stock, selected_time_range):
     end_date = pd.Timestamp.now()
     start_date = end_date - pd.Timedelta(weeks=4)  # Fetching 4 weeks of data for example
 
-    
     df_stock = fetch_hourly_stock_data(selected_stock, start_date, end_date)
     if df_stock.empty:
         return go.Figure()
 
-    historical_dates, historical_prices, future_preds, lower_bound, upper_bound, _ = perform_hourly_linear_regression(df_stock)
+    # Calculate polynomial regression
+    x = np.array(range(len(df_stock.index))).reshape(-1, 1)
+    y = df_stock['Close'].values
+    poly = PolynomialFeatures(degree=3)
+    x_poly = poly.fit_transform(x)
+    poly.fit(x_poly, y)
+    lin2 = LinearRegression()
+    lin2.fit(x_poly, y)
+
+    # Create future dates
+    future_dates = pd.date_range(start=df_stock.index[-1], periods=24, freq='H')  # Predicting the next 24 hours for example
+
+    # Apply polynomial regression function to future dates
+    future_preds = lin2.predict(poly.fit_transform(np.array(range(len(df_stock.index), len(df_stock.index) + len(future_dates))).reshape(-1, 1)))
 
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=historical_dates, y=historical_prices, mode='lines', name='Historical Prices'))
-    future_dates = pd.date_range(start=historical_dates[-1], periods=len(future_preds)+1, freq='H', closed='right')
-    fig.add_trace(go.Scatter(x=future_dates, y=future_preds, mode='lines', name='Linear Regression Predictions', line=dict(color='orange')))
-    
-    fig.add_trace(go.Scatter(x=future_dates, y=lower_bound, mode='lines', name='Lower Confidence Bound', line=dict(color='red')))
-    fig.add_trace(go.Scatter(x=future_dates, y=upper_bound, mode='lines', name='Upper Confidence Bound', line=dict(color='green')))
-    
-    # Fill the area between the confidence bounds
-    fig.add_traces([go.Scatter(x=list(future_dates)+list(future_dates)[::-1],
-                               y=list(upper_bound)+list(lower_bound)[::-1],
-                               fill='toself',
-                               fillcolor='rgba(231,107,243,0.2)',
-                               line=dict(color='rgba(255,255,255,0)'),
-                               name='Confidence Interval')])
+    fig.add_trace(go.Scatter(x=df_stock.index, y=df_stock['Close'], mode='lines', name='Historical Prices'))
+    fig.add_trace(go.Scatter(x=future_dates, y=future_preds, mode='lines', name='Polynomial Regression Predictions', line=dict(color='orange')))
 
-    fig.update_layout(title='Hourly Stock Price Prediction with Linear Regression and Confidence Interval')
+    fig.update_layout(title='Hourly Stock Price Prediction with Polynomial Regression')
     
     return fig
 
