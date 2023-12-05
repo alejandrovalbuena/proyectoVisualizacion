@@ -8,8 +8,6 @@ from sklearn.linear_model import LinearRegression
 import numpy as np
 import pandas as pd
 from dash.exceptions import PreventUpdate
-from pandas.tseries.offsets import BDay
-from sklearn.svm import SVR
 from sklearn.metrics import mean_squared_error
 from math import sqrt
 import plotly.express as px
@@ -18,30 +16,34 @@ app = dash.Dash(__name__)
 
 top_50_sp500 = [
     {'label': 'Apple Inc', 'value': 'AAPL'},
-    {'label': 'Broadcom Inc', 'value': 'AVGO'},
-    {'label': 'Sysco Corporation', 'value': 'SYY'},
-    {'label': 'T-Mobile US', 'value': 'TMUS'},
-    {'label': 'T. Rowe Price', 'value': 'TROW'},
-    {'label': 'Take-Two Interactive', 'value': 'TTWO'},
-    {'label': 'Tapestry, Inc.', 'value': 'TPR'},
-    {'label': 'Targa Resources', 'value': 'TRGP'},
-    {'label': 'Target Corporation', 'value': 'TGT'},
-    {'label': 'TE Connectivity', 'value': 'TEL'},
-    {'label': 'Tesla, Inc.', 'value': 'TSLA'},
-    {'label': 'Texas Instruments', 'value': 'TXN'},
-    {'label': 'Textron', 'value': 'TXT'},
-    {'label': 'Thermo Fisher Scientific', 'value': 'TMO'},
-    {'label': 'TJX Companies', 'value': 'TJX'},
-    {'label': 'Tractor Supply Company', 'value': 'TSCO'},
-    {'label': 'Trane Technologies', 'value': 'TT'},
-    {'label': 'TransDigm Group', 'value': 'TDG'},
-    {'label': 'Travelers Companies', 'value': 'TRV'},
+    {'label': 'Microsoft Corporation', 'value': 'MSFT'},
+    {'label': 'Amazon.com Inc', 'value': 'AMZN'},
     {'label': 'Trimble Inc.', 'value': 'TRMB'},
-    {'label': 'Truist Financial', 'value': 'TFC'},
-    {'label': 'Tyler Technologies', 'value': 'TYL'},
-    {'label': 'Tyson Foods', 'value': 'TSN'},
-    {'label': 'U.S. Bancorp', 'value': 'USB'},
-    {'label': 'UDR, Inc.', 'value': 'UDR'}
+    {'label': 'Facebook, Inc. (Meta Platforms)', 'value': 'META'},
+    {'label': 'Alphabet Inc. (Class A)', 'value': 'GOOGL'},
+    {'label': 'Tesla, Inc.', 'value': 'TSLA'},
+    {'label': 'NVIDIA Corporation', 'value': 'NVDA'},
+    {'label': 'JPMorgan Chase & Co.', 'value': 'JPM'},
+    {'label': 'Johnson & Johnson', 'value': 'JNJ'},
+    {'label': 'Visa Inc.', 'value': 'V'},
+    {'label': 'UnitedHealth Group Incorporated', 'value': 'UNH'},
+    {'label': 'Home Depot, Inc.', 'value': 'HD'},
+    {'label': 'Procter & Gamble', 'value': 'PG'},
+    {'label': 'Mastercard Incorporated', 'value': 'MA'},
+    {'label': 'Bank of America Corp', 'value': 'BAC'},
+    {'label': 'Walt Disney Company', 'value': 'DIS'},
+    {'label': 'Adobe Inc.', 'value': 'ADBE'},
+    {'label': 'Salesforce.com', 'value': 'CRM'},
+    {'label': 'Comcast Corporation', 'value': 'CMCSA'},
+    {'label': 'Netflix, Inc.', 'value': 'NFLX'},
+    {'label': 'Cisco Systems, Inc.', 'value': 'CSCO'},
+    {'label': 'Pfizer Inc.', 'value': 'PFE'},
+    {'label': 'Intel Corporation', 'value': 'INTC'},
+    {'label': 'Verizon Communications Inc.', 'value': 'VZ'},
+    {'label': 'Coca-Cola Company', 'value': 'KO'},
+    {'label': 'AT&T Inc.', 'value': 'T'},
+    {'label': 'Merck & Co., Inc.', 'value': 'MRK'},
+    {'label': 'PepsiCo, Inc.', 'value': 'PEP'}
 ]
 
 
@@ -71,13 +73,11 @@ def calculate_bollinger_bands(dataframe, window=20, num_of_std=2):
     return rolling_mean, upper_band, lower_band
 
 def fetch_hourly_stock_data(symbol, start_date, end_date):
-    # Fetches hourly stock data within a specified date range
     stock = yf.Ticker(symbol)
     df = stock.history(interval="1h", start=start_date, end=end_date)
     return df
 
 def perform_hourly_linear_regression(dataframe, hours_ahead=24):
-    # Ensure the dataframe is sorted by date
     dataframe = dataframe.sort_index()
     hourly_data = dataframe
     
@@ -86,86 +86,128 @@ def perform_hourly_linear_regression(dataframe, hours_ahead=24):
     y = hourly_data['Close']
 
 
-    # Fit the regression model
     model = LinearRegression()
     model.fit(X, y)
 
-    # Predict future values
     last_numeric_index = hourly_data['NumericIndex'].iloc[-1]
     future_indices = np.array(range(last_numeric_index + 1, last_numeric_index + hours_ahead + 1)).reshape(-1, 1)
     future_preds = model.predict(future_indices)
-    
-    # Calculate the RMSE for confidence intervals
+
     y_pred = model.predict(X)
     rmse = sqrt(mean_squared_error(y, y_pred))
     
-    # Create confidence intervals
     lower_bound = future_preds - 1.96 * rmse
     upper_bound = future_preds + 1.96 * rmse
     
     return hourly_data.index, hourly_data['Close'], future_preds, lower_bound, upper_bound, model
 
+def find_anomalies(data, std_multiplier=3):
+    anomalies = []
+    data_std = np.std(data)
+    data_mean = np.mean(data)
+    anomaly_cut_off = data_std * std_multiplier
+    
+    lower_limit = data_mean - anomaly_cut_off 
+    upper_limit = data_mean + anomaly_cut_off
+
+    for index, value in enumerate(data):
+        if value > upper_limit or value < lower_limit:
+            anomalies.append((index, value))
+    return anomalies
 
 
 app.layout = html.Div([
-    html.H1('Trader Assistant', style={'text-align': 'center'}),
+    html.Div([
+        html.H1('Trader Assistant', style={'text-align': 'center', 'margin-bottom': '50px', 'color': '#007BFF', 'font-family': 'Arial', 'font-size': '40px'})
+    ], style={'background': '#333', 'padding': '20px', 'font-family': 'Arial'}),
+    html.Div([
+        html.Div([
+            dcc.Dropdown(
+                id='stock-selector',
+                options=top_50_sp500,
+                value='AAPL',
+                style={'width': '100%', 'margin-bottom': '20px'}
+            ),
+            dcc.Dropdown(
+                id='time-range-selector',
+                options=[
+                    {'label': '1 Month', 'value': '1mo'},
+                    {'label': '3 Months', 'value': '3mo'},
+                    {'label': '6 Months', 'value': '6mo'},
+                    {'label': '1 Year', 'value': '1y'},
+                    {'label': '5 Years', 'value': '5y'}
+                ],
+                value='1y', 
+                style={'width': '100%', 'margin-bottom': '20px'}
+            ),
+            html.Button('Select All Indicators', id='select-all-button', style={'width': '100%', 'margin-bottom': '20px'}),
+            dcc.Checklist(
+                id='ma-options-selector',
+                options=[
+                    {'label': 'Show 200-session Moving Average', 'value': 'MA200'},
+                    {'label': 'Show 100-session Moving Average', 'value': 'MA100'},
+                    {'label': 'Show 50-session Moving Average', 'value': 'MA50'}
+                ],
+                value=[], 
+                style={'width': '100%', 'margin-bottom': '20px'}
+            ),
 
-    dcc.Dropdown(
-        id='stock-selector',
-        options=top_50_sp500,
-        value='AAPL'  # Default value
-    ),
+            html.H4("Select main statistics to compare", 
+                    style={'width': '100%', 'margin-top': '250px', 'margin-bottom': '20px'}),
 
-    dcc.Dropdown(
-        id='time-range-selector',
-        options=[
-            {'label': '1 Month', 'value': '1mo'},
-            {'label': '3 Months', 'value': '3mo'},
-            {'label': '6 Months', 'value': '6mo'},
-            {'label': '1 Year', 'value': '1y'},
-            {'label': '5 Years', 'value': '5y'}
-        ],
-        value='1y'  # Default value
-    ),
 
-    html.Button('Select All Indicators', id='select-all-button'),
+            dcc.Checklist(
+                id='indicator-selector',
+                options=[
+                    {'label': 'Show RSI', 'value': 'RSI'},
+                    {'label': 'Show Bollinger Bands', 'value': 'BOLL'}
+                ],
+                value=[],
+                style={'width': '100%', 'margin-bottom': '50px'}
+),
+            html.H4("Compare up to 4 stocks using a confusion matrix", 
+                    style={'width': '100%', 'margin-top': '900px', 'margin-bottom': '20px'}),
 
-    dcc.Checklist(
-        id='ma-options-selector',
-        options=[
-            {'label': 'Show 200-session Moving Average', 'value': 'MA200'},
-            {'label': 'Show 100-session Moving Average', 'value': 'MA100'},
-            {'label': 'Show 50-session Moving Average', 'value': 'MA50'}
-        ],
-        value=[]  # No default value, user must select
-    ),
+            dcc.Dropdown(
+                id='stock-selector-1',
+                options=top_50_sp500,
+                value='AAPL', 
+                style={'width': '100%', 'margin-bottom': '20px'}
+            ),
+            dcc.Dropdown(
+                id='stock-selector-2',
+                options=top_50_sp500,
+                value='MSFT',
+                style={'width': '100%', 'margin-bottom': '20px'}
+            ),
+            dcc.Dropdown(
+                id='stock-selector-3',
+                options=top_50_sp500,
+                value=top_50_sp500[2]['value'], 
+                style={'width': '100%', 'margin-bottom': '20px'}
+            ),
+            dcc.Dropdown(
+                id='stock-selector-4',
+                options=top_50_sp500,
+                value=top_50_sp500[3]['value'],
+                style={'width': '100%', 'margin-bottom': '20px'}
+            ),
+        ], style={'flex': '1', 'margin-right': '20px', 'font-family': 'Arial'}),
+        html.Div([
+            dcc.Graph(id='stock-price-graph', style={'margin-bottom': '20px'}),
+            dcc.Graph(id='indicator-graph', style={'margin-bottom': '20px'}),
+            dcc.Graph(id='linear-regression-prediction-graph', style={'margin-bottom': '20px'}),
+            dcc.Graph(id='correlation-graph', style={'margin-bottom': '20px'}),
+            dcc.Graph(id='anomaly-graph')
+        ], style={'flex': '3', 'font-family': 'Arial'}),
+        
+    ], style={'display': 'flex', 'flex-wrap': 'wrap', 'justify-content': 'space-between', 'font-family': 'Arial'}),
 
-    dcc.Graph(id='stock-price-graph'),
+], style={'padding': '20px', 'font-family': 'Arial'})
 
-    dcc.Checklist(
-        id='indicator-selector',
-        options=[
-            {'label': 'Show RSI', 'value': 'RSI'},
-            {'label': 'Show Bollinger Bands', 'value': 'BOLL'}
-        ],
-        value=[]  # No default value, user must select
-    ),
 
-    dcc.Graph(id='indicator-graph'),
-    dcc.Graph(id='linear-regression-prediction-graph'),
-    dcc.Dropdown(
 
-    id='stock-selector-1',
-    options=top_50_sp500,
-    value='AAPL'  # Default value for the first stock
-    ),
-    dcc.Dropdown(
-        id='stock-selector-2',
-        options=top_50_sp500,
-        value='MSFT'  # Default value for the second stock
-    ),
-    dcc.Graph(id='correlation-graph')
-])
+app.css.append_css({"external_url": "assets/style.css"})
 
 @app.callback(
     Output('ma-options-selector', 'value'),
@@ -178,8 +220,6 @@ app.layout = html.Div([
 def select_all(n_clicks, ma_options, indicator_options):
     if n_clicks is None:
         raise PreventUpdate
-
-    # Extract the values from options
     ma_values = [option['value'] for option in ma_options]
     indicator_values = [option['value'] for option in indicator_options]
 
@@ -192,24 +232,21 @@ def select_all(n_clicks, ma_options, indicator_options):
 def update_graph(selected_stock, ma_options, selected_time_range):
     df_stock = fetch_stock_data(selected_stock, selected_time_range)
     fig = go.Figure()
-
-    # Plotting the close price
     fig.add_trace(go.Scatter(x=df_stock.index, y=df_stock['Close'], mode='lines', name=f'{selected_stock} Close Price'))
-
-    # Calculate and plot 200-session moving average if selected
     if 'MA200' in ma_options:
         df_stock['200_MA'] = df_stock['Close'].rolling(window=200, min_periods=1).mean()
         fig.add_trace(go.Scatter(x=df_stock.index, y=df_stock['200_MA'], mode='lines', name='200 Session MA', line=dict(color='red')))
 
-    # Calculate and plot 100-session moving average if selected
     if 'MA100' in ma_options:
         df_stock['100_MA'] = df_stock['Close'].rolling(window=100, min_periods=1).mean()
         fig.add_trace(go.Scatter(x=df_stock.index, y=df_stock['100_MA'], mode='lines', name='100 Session MA', line=dict(color='green')))
 
-    # Calculate and plot 50-session moving average if selected
     if 'MA50' in ma_options:
         df_stock['50_MA'] = df_stock['Close'].rolling(window=50, min_periods=1).mean()
         fig.add_trace(go.Scatter(x=df_stock.index, y=df_stock['50_MA'], mode='lines', name='50 Session MA', line=dict(color='orange')))
+
+    fig.update_layout(title='Stock Price and Moving Averages')
+
 
     return fig
 
@@ -261,9 +298,8 @@ def update_indicator_graph(selected_stock, selected_indicators, selected_time_ra
     [Input('stock-selector', 'value'), Input('time-range-selector', 'value')]
 )
 def update_hourly_linear_regression_graph(selected_stock, selected_time_range):
-    # Define the start and end date for fetching hourly data
     end_date = pd.Timestamp.now()
-    start_date = end_date - pd.Timedelta(weeks=4)  # Fetching 4 weeks of data for example
+    start_date = end_date - pd.Timedelta(weeks=4) 
 
     
     df_stock = fetch_hourly_stock_data(selected_stock, start_date, end_date)
@@ -280,7 +316,6 @@ def update_hourly_linear_regression_graph(selected_stock, selected_time_range):
     fig.add_trace(go.Scatter(x=future_dates, y=lower_bound, mode='lines', name='Lower Confidence Bound', line=dict(color='red')))
     fig.add_trace(go.Scatter(x=future_dates, y=upper_bound, mode='lines', name='Upper Confidence Bound', line=dict(color='green')))
     
-    # Fill the area between the confidence bounds
     fig.add_traces([go.Scatter(x=list(future_dates)+list(future_dates)[::-1],
                                y=list(upper_bound)+list(lower_bound)[::-1],
                                fill='toself',
@@ -294,25 +329,51 @@ def update_hourly_linear_regression_graph(selected_stock, selected_time_range):
 
 @app.callback(
     Output('correlation-graph', 'figure'),
-    [Input('stock-selector-1', 'value'), Input('stock-selector-2', 'value')]
+    [Input('stock-selector-1', 'value'),
+     Input('stock-selector-2', 'value'),
+     Input('stock-selector-3', 'value'),
+     Input('stock-selector-4', 'value')]
 )
-def update_correlation_graph(stock1, stock2):
-    # Fetch data for both stocks
-    df_stock1 = fetch_stock_data(stock1, '1mo')  # You can adjust the time period
-    df_stock2 = fetch_stock_data(stock2, '1mo')
+def update_correlation_graph(stock1, stock2, stock3, stock4):
+    dfs = []
+    for stock in [stock1, stock2, stock3, stock4]:
+        df = fetch_stock_data(stock, '2y')[['Close']].rename(columns={'Close': stock})
+        dfs.append(df)
 
-    # Ensure both dataframes have the same index for proper correlation calculation
-    df_stock1 = df_stock1[['Close']].rename(columns={'Close': stock1})
-    df_stock2 = df_stock2[['Close']].rename(columns={'Close': stock2})
-    df_combined = pd.concat([df_stock1, df_stock2], axis=1)
-
-    # Calculate correlation
+    df_combined = pd.concat(dfs, axis=1)
     correlation = df_combined.corr()
+    fig = px.imshow(correlation, text_auto=True, aspect='auto')
 
-    # Create a heatmap or scatter plot for correlation
-    fig = px.imshow(correlation, text_auto=True, aspect="auto")
+    fig.update_layout(
+        title='4x4 Stock Correlation Matrix',
+        xaxis_nticks=4,
+        yaxis_nticks=4
+    )
 
     return fig
+
+@app.callback(
+    Output('anomaly-graph', 'figure'),
+    [Input('stock-selector', 'value'), Input('time-range-selector', 'value')]
+)
+def update_anomaly_graph(selected_stock, selected_time_range):
+    df_stock = fetch_stock_data(selected_stock, selected_time_range)
+    closing_prices = df_stock['Close'].tolist()
+    
+    anomalies = find_anomalies(closing_prices, std_multiplier=2.5) 
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=df_stock.index, y=df_stock['Close'], mode='lines', name='Close Price'))
+    
+    for anomaly in anomalies:
+        fig.add_trace(go.Scatter(x=[df_stock.index[anomaly[0]]], 
+                                 y=[anomaly[1]], 
+                                 mode='markers', 
+                                 marker=dict(color='red', size=10),
+                                 name='Anomaly'))
+    
+    fig.update_layout(title='Stock Price Anomaly Detection')
+    return fig
+
 
 if __name__ == '__main__':
     app.run_server(debug=True)
