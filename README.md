@@ -1,26 +1,4 @@
-# proyectoVisualizacion
+# Proyecto de Visualización
 
 
-    {'label': 'Broadcom Inc', 'value': 'AVGO'},
-    {'label': 'Sysco Corporation', 'value': 'SYY'},
-    {'label': 'T-Mobile US', 'value': 'TMUS'},
-    {'label': 'T. Rowe Price', 'value': 'TROW'},
-    {'label': 'Take-Two Interactive', 'value': 'TTWO'},
-    {'label': 'Tapestry, Inc.', 'value': 'TPR'},
-    {'label': 'Targa Resources', 'value': 'TRGP'},
-    {'label': 'Target Corporation', 'value': 'TGT'},
-    {'label': 'TE Connectivity', 'value': 'TEL'},
-    {'label': 'Tesla, Inc.', 'value': 'TSLA'},
-    {'label': 'Texas Instruments', 'value': 'TXN'},
-    {'label': 'Textron', 'value': 'TXT'},
-    {'label': 'Thermo Fisher Scientific', 'value': 'TMO'},
-    {'label': 'TJX Companies', 'value': 'TJX'},
-    {'label': 'Tractor Supply Company', 'value': 'TSCO'},
-    {'label': 'Trane Technologies', 'value': 'TT'},
-    {'label': 'TransDigm Group', 'value': 'TDG'},
-    {'label': 'Travelers Companies', 'value': 'TRV'},
-    {'label': 'Trimble Inc.', 'value': 'TRMB'},
-    {'label': 'Truist Financial', 'value': 'TFC'},
-    {'label': 'Tyler Technologies', 'value': 'TYL'},
-    {'label': 'Tyson Foods', 'value': 'TSN'},
-    {'label': 'U.S. Bancorp', 'value': 'USB'},# preoyectoServer
+Embark on a financial adventure with our interactive trader's companion app! Whether you're a Wall Street wizard or a Main Street maven, this app is your digital crystal ball. Start by selecting your stock of choice and watch as the app conjures up mesmerizing graphs that trace the heartbeat of the market. Glide through the valleys and soar over the peaks of stock prices, with moving averages as your trusty guide. Next, dive into the mystical realm of Bollinger Bands and RSI, where volatility and momentum reveal their secrets. But that's not all — our app's linear regression predictions are like a fortune teller's gaze into the future of stock trends. Meanwhile, the correlation matrix is your market map, showing you how different stocks dance together or march to their own beat. And for the grand finale, our anomaly detection feature is like having a market detective on call, sniffing out the unusual patterns that could be the whispers of the next big shake-up. Join the ranks of the market-savvy with this all-in-one toolkit — your fun, friendly, and futuristic guide to trading!
