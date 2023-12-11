@@ -15,6 +15,8 @@ import plotly.express as px
 app = dash.Dash(__name__)
 server = app.server
 
+#Define the variables for the dropdown menu
+
 top_50_sp500 = [
     {'label': 'Apple Inc', 'value': 'AAPL'},
     {'label': 'Microsoft Corporation', 'value': 'MSFT'},
@@ -47,6 +49,7 @@ top_50_sp500 = [
     {'label': 'PepsiCo, Inc.', 'value': 'PEP'}
 ]
 
+#Define the functions to fetch the data
 
 def fetch_stock_data(symbol, period):
     stock = yf.Ticker(symbol)
@@ -72,6 +75,8 @@ def calculate_bollinger_bands(dataframe, window=20, num_of_std=2):
     lower_band = rolling_mean - (rolling_std * num_of_std)
     
     return rolling_mean, upper_band, lower_band
+
+#Define the functions to perform the linear regression
 
 def fetch_hourly_stock_data(symbol, start_date, end_date):
     stock = yf.Ticker(symbol)
@@ -102,6 +107,8 @@ def perform_hourly_linear_regression(dataframe, hours_ahead=24):
     
     return hourly_data.index, hourly_data['Close'], future_preds, lower_bound, upper_bound, model
 
+#Define the function to find anomalies
+
 def find_anomalies(data, std_multiplier=3):
     anomalies = []
     data_std = np.std(data)
@@ -116,6 +123,11 @@ def find_anomalies(data, std_multiplier=3):
             anomalies.append((index, value))
     return anomalies
 
+#Define the layout of the app
+#The layout is a combination of HTML and CSS
+#The layout is divided into two columns
+#The left column contains the dropdown menus and the right column contains the graphs
+#The layout is responsive and will adapt to the size of the screen
 
 app.layout = html.Div([
     html.Div([
@@ -206,9 +218,14 @@ app.layout = html.Div([
 
 ], style={'padding': '20px', 'font-family': 'Arial'})
 
-
+#Define the callbacks
+#The callbacks are the functions that will be executed when the user interacts with the app
+#The callbacks are triggered by the inputs and the outputs
+#The inputs are the dropdown menus and the button
 
 app.css.append_css({"external_url": "assets/style.css"})
+
+#Define the callbacks for the stock price graph
 
 @app.callback(
     Output('ma-options-selector', 'value'),
@@ -225,6 +242,7 @@ def select_all(n_clicks, ma_options, indicator_options):
     indicator_values = [option['value'] for option in indicator_options]
 
     return ma_values, indicator_values
+
 
 @app.callback(
     Output('stock-price-graph', 'figure'),
@@ -251,6 +269,7 @@ def update_graph(selected_stock, ma_options, selected_time_range):
 
     return fig
 
+#Define the callbacks for the other graphs
 
 @app.callback(
     Output('indicator-graph', 'figure'),
@@ -288,11 +307,27 @@ def update_indicator_graph(selected_stock, selected_indicators, selected_time_ra
             secondary_y=True,
         )
 
-    fig.update_layout(title=f'{selected_stock} Indicators')
+    fig.update_layout(
+    title='TRMB Indicators',
+    annotations=[
+        dict(
+            text='Bollinger Bands: A tool that consists of a set of three lines plotted in relation to a security\'s price, indicating levels of market volatility.',
+            showarrow=False,
+            xref='paper',
+            yref='paper',
+            x=0.5,
+            y=1,
+            xanchor='center',
+            yanchor='bottom',
+            font=dict(size=12)) ])
     fig.update_yaxes(title_text="RSI", secondary_y=False)
     fig.update_yaxes(title_text="Bollinger Bands", secondary_y=True)
 
     return fig
+
+#Define the callbacks for the linear regression graph
+#The callbacks for the linear regression graph are similar to the callbacks for the stock price graph
+#The difference is that the callbacks for the linear regression graph use the hourly data instead of the daily data
 
 @app.callback(
     Output('linear-regression-prediction-graph', 'figure'),
@@ -328,6 +363,9 @@ def update_hourly_linear_regression_graph(selected_stock, selected_time_range):
     
     return fig
 
+#Define the callback for the correlation graph
+#The correlation graph is a 4x4 matrix that shows the correlation between 4 stocks
+
 @app.callback(
     Output('correlation-graph', 'figure'),
     [Input('stock-selector-1', 'value'),
@@ -353,6 +391,9 @@ def update_correlation_graph(stock1, stock2, stock3, stock4):
 
     return fig
 
+#Define the callback for the anomaly graph
+#The anomaly graph shows the anomalies in the stock price data
+
 @app.callback(
     Output('anomaly-graph', 'figure'),
     [Input('stock-selector', 'value'), Input('time-range-selector', 'value')]
@@ -372,9 +413,23 @@ def update_anomaly_graph(selected_stock, selected_time_range):
                                  marker=dict(color='red', size=10),
                                  name='Anomaly'))
     
-    fig.update_layout(title='Stock Price Anomaly Detection')
+    fig.update_layout(
+    title='Stock Price Anomaly Detection',
+    annotations=[
+        dict(
+            text='Anomaly Detection: Identifying unusual patterns or deviations in stock data that may indicate significant events.',
+            showarrow=False,
+            xref='paper',
+            yref='paper',
+            x=0.5,
+            y=1,
+            xanchor='center',
+            yanchor='bottom',
+            font=dict(size=12))])
+
     return fig
 
+#Run the app
 
 if __name__ == '__main__':
     app.run_server(debug=True)
