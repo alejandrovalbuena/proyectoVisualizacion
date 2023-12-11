@@ -23,4 +23,4 @@
     {'label': 'Truist Financial', 'value': 'TFC'},
     {'label': 'Tyler Technologies', 'value': 'TYL'},
     {'label': 'Tyson Foods', 'value': 'TSN'},
-    {'label': 'U.S. Bancorp', 'value': 'USB'},
+    {'label': 'U.S. Bancorp', 'value': 'USB'},# preoyectoServer
