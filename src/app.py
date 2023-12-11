@@ -13,6 +13,7 @@ from math import sqrt
 import plotly.express as px
 
 app = dash.Dash(__name__)
+server = app.server
 
 top_50_sp500 = [
     {'label': 'Apple Inc', 'value': 'AAPL'},
@@ -125,7 +126,7 @@ app.layout = html.Div([
             dcc.Dropdown(
                 id='stock-selector',
                 options=top_50_sp500,
-                value='AAPL',
+                value='TRMB',
                 style={'width': '100%', 'margin-bottom': '20px'}
             ),
             dcc.Dropdown(
