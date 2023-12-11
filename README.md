@@ -1,4 +1,18 @@
 # Proyecto de Visualización
 
 
-Embark on a financial adventure with our interactive trader's companion app! Whether you're a Wall Street wizard or a Main Street maven, this app is your digital crystal ball. Start by selecting your stock of choice and watch as the app conjures up mesmerizing graphs that trace the heartbeat of the market. Glide through the valleys and soar over the peaks of stock prices, with moving averages as your trusty guide. Next, dive into the mystical realm of Bollinger Bands and RSI, where volatility and momentum reveal their secrets. But that's not all — our app's linear regression predictions are like a fortune teller's gaze into the future of stock trends. Meanwhile, the correlation matrix is your market map, showing you how different stocks dance together or march to their own beat. And for the grand finale, our anomaly detection feature is like having a market detective on call, sniffing out the unusual patterns that could be the whispers of the next big shake-up. Join the ranks of the market-savvy with this all-in-one toolkit — your fun, friendly, and futuristic guide to trading!
+Embark on a financial adventure with our interactive trader's companion app! Whether you're a Wall Street wizard or a Main Street maven, this app is your digital crystal ball. 
+
+Start by selecting your stock of choice and watch as the app graphs its price and some graphs illustrating some of the main characteristics:
+
+-> Price and moving averages
+-> Bollinger Bands and RSI
+-> Linear regression predicted price
+-> Correlation Matrix
+-> Anomaly detection
+
+Join the ranks of the market-savvy with this all-in-one toolkit — your fun, friendly, and futuristic guide to trading!
+
+
+Alejandro Valbuena Núñez
+11/12/2023
